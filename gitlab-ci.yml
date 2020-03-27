@@ -1,0 +1,37 @@
+image: docker:latest
+
+variables:
+  MAVEN_CLI_OPTS: "-s .m2/settings.xml --batch-mode"
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
+
+services:
+- docker:dind
+
+cache:
+  paths:
+    - .m2/repository/
+    - target/
+   
+stages:
+  - build
+  - pushImg
+
+build:
+  image: maven:latest
+  stage: build
+  script:
+    - mvn $MAVEN_CLI_OPTS clean install
+
+pushImg:
+  stage: pushImg
+  script:
+    - apk add --no-cache curl jq python py-pip
+    - pip install awscli
+    - aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 936773972035.dkr.ecr.us-east-1.amazonaws.com/my-first-ecr
+    - docker build -t my-first-ecr .
+    - docker tag my-first-ecr:latest 936773972035.dkr.ecr.us-east-1.amazonaws.com/my-first-ecr:latest
+    - docker push 936773972035.dkr.ecr.us-east-1.amazonaws.com/my-first-ecr:latest
+  only:
+    - master
+  tags:
+    - docker
